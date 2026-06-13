@@ -28,14 +28,18 @@ def write_to_postgres(context, records):
     sql = """
         INSERT INTO patient_records
         (age, gender, bmi, glucose, blood_pressure, hba1c,
-         insulin, skin_thickness, pregnancies, diabetes_risk, label, recorded_at)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+         insulin, skin_thickness, pregnancies,
+         physical_activity, smoking_status, alcohol_consumption, family_history,
+         diabetes_risk, label, recorded_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """
     for r in records:
         cur.execute(sql, (
             r["age"], r["gender"], r["bmi"], r["glucose"],
             r["blood_pressure"], r["hba1c"], r["insulin"],
             r["skin_thickness"], r["pregnancies"],
+            r["physical_activity"], r["smoking_status"],
+            r["alcohol_consumption"], r["family_history"],
             r["diabetes_risk"], r["label"], r["recorded_at"]
         ))
     conn.commit()

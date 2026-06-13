@@ -128,6 +128,19 @@ TRANSLATIONS = {
         "predict_field_insulin": "Insulin (μU/mL)",
         "predict_field_skin": "Teri qatlami qalinligi (mm)",
         "predict_field_pregnancies": "Homiladorliklar soni",
+        "predict_field_activity": "Jismoniy faollik",
+        "activity_low": "Past",
+        "activity_medium": "O'rta",
+        "activity_high": "Yuqori",
+        "predict_field_smoking": "Chekish holati",
+        "smoking_never": "Chekmaydi",
+        "smoking_former": "Avval chekkan",
+        "smoking_current": "Chekadi",
+        "predict_field_alcohol": "Alkogol iste'moli",
+        "alcohol_none": "Yo'q",
+        "alcohol_moderate": "O'rtacha",
+        "alcohol_high": "Yuqori",
+        "predict_field_family_history": "Oilada diabet kasalligi bormi?",
         "predict_button": "🧮 Xavfni hisoblash",
         "predict_result_title": "Natija",
         "predict_risk_label": "Diabet xavfi darajasi",
@@ -228,6 +241,19 @@ TRANSLATIONS = {
         "predict_field_insulin": "Insulin (μU/mL)",
         "predict_field_skin": "Skin thickness (mm)",
         "predict_field_pregnancies": "Number of pregnancies",
+        "predict_field_activity": "Physical activity",
+        "activity_low": "Low",
+        "activity_medium": "Medium",
+        "activity_high": "High",
+        "predict_field_smoking": "Smoking status",
+        "smoking_never": "Never",
+        "smoking_former": "Former",
+        "smoking_current": "Current",
+        "predict_field_alcohol": "Alcohol consumption",
+        "alcohol_none": "None",
+        "alcohol_moderate": "Moderate",
+        "alcohol_high": "High",
+        "predict_field_family_history": "Family history of diabetes?",
         "predict_button": "🧮 Calculate risk",
         "predict_result_title": "Result",
         "predict_risk_label": "Diabetes risk score",
@@ -328,6 +354,19 @@ TRANSLATIONS = {
         "predict_field_insulin": "Инсулин (мкЕд/мл)",
         "predict_field_skin": "Толщина кожной складки (мм)",
         "predict_field_pregnancies": "Количество беременностей",
+        "predict_field_activity": "Физическая активность",
+        "activity_low": "Низкая",
+        "activity_medium": "Средняя",
+        "activity_high": "Высокая",
+        "predict_field_smoking": "Статус курения",
+        "smoking_never": "Не курит",
+        "smoking_former": "Курил ранее",
+        "smoking_current": "Курит",
+        "predict_field_alcohol": "Употребление алкоголя",
+        "alcohol_none": "Нет",
+        "alcohol_moderate": "Умеренное",
+        "alcohol_high": "Высокое",
+        "predict_field_family_history": "Диабет в семейном анамнезе?",
         "predict_button": "🧮 Рассчитать риск",
         "predict_result_title": "Результат",
         "predict_risk_label": "Уровень риска диабета",
@@ -357,16 +396,22 @@ COLUMN_LABELS = {
     "uz": {
         "id": "ID", "age": "Yosh", "gender": "Jins", "bmi": "BMI",
         "glucose": "Glukoza", "hba1c": "HbA1c", "blood_pressure": "Qon bosimi",
+        "physical_activity": "Jismoniy faollik", "smoking_status": "Chekish holati",
+        "alcohol_consumption": "Alkogol", "family_history": "Oilada diabet",
         "diabetes_risk": "Xavf darajasi", "label": "Sinf", "recorded_at": "Vaqt",
     },
     "en": {
         "id": "ID", "age": "Age", "gender": "Gender", "bmi": "BMI",
         "glucose": "Glucose", "hba1c": "HbA1c", "blood_pressure": "Blood pressure",
+        "physical_activity": "Physical activity", "smoking_status": "Smoking",
+        "alcohol_consumption": "Alcohol", "family_history": "Family history",
         "diabetes_risk": "Risk score", "label": "Class", "recorded_at": "Recorded at",
     },
     "ru": {
         "id": "ID", "age": "Возраст", "gender": "Пол", "bmi": "ИМТ",
         "glucose": "Глюкоза", "hba1c": "HbA1c", "blood_pressure": "Давление",
+        "physical_activity": "Активность", "smoking_status": "Курение",
+        "alcohol_consumption": "Алкоголь", "family_history": "Семейный анамнез",
         "diabetes_risk": "Уровень риска", "label": "Класс", "recorded_at": "Время записи",
     },
 }
@@ -952,7 +997,9 @@ with tab3:
 
     col_labels = COLUMN_LABELS[LANG]
     all_cols = ["id", "age", "gender", "bmi", "glucose", "hba1c",
-                 "blood_pressure", "diabetes_risk", "label", "recorded_at"]
+                 "blood_pressure", "physical_activity", "smoking_status",
+                 "alcohol_consumption", "family_history",
+                 "diabetes_risk", "label", "recorded_at"]
     default_cols = ["id", "age", "gender", "glucose", "bmi", "hba1c",
                      "diabetes_risk", "label", "recorded_at"]
 
@@ -1076,6 +1123,9 @@ with tab5:
     st.markdown(f'<div class="info-box">{t("predict_intro")}</div>', unsafe_allow_html=True)
 
     gender_options = {t("predict_gender_female"): "Female", t("predict_gender_male"): "Male"}
+    activity_options = {t("activity_low"): "Low", t("activity_medium"): "Medium", t("activity_high"): "High"}
+    smoking_options = {t("smoking_never"): "Never", t("smoking_former"): "Former", t("smoking_current"): "Current"}
+    alcohol_options = {t("alcohol_none"): "None", t("alcohol_moderate"): "Moderate", t("alcohol_high"): "High"}
 
     with st.form("predict_form"):
         c1, c2, c3 = st.columns(3)
@@ -1083,14 +1133,18 @@ with tab5:
             p_age = st.number_input(t("predict_field_age"), min_value=1, max_value=120, value=45)
             p_gender_label = st.selectbox(t("predict_field_gender"), options=list(gender_options.keys()))
             p_bmi = st.number_input(t("predict_field_bmi"), min_value=10.0, max_value=70.0, value=28.0, step=0.1)
+            p_pregnancies = st.number_input(t("predict_field_pregnancies"), min_value=0, max_value=15, value=0, step=1)
         with c2:
             p_glucose = st.number_input(t("predict_field_glucose"), min_value=40.0, max_value=400.0, value=110.0, step=1.0)
             p_bp = st.number_input(t("predict_field_bp"), min_value=30.0, max_value=200.0, value=80.0, step=1.0)
             p_hba1c = st.number_input(t("predict_field_hba1c"), min_value=3.0, max_value=16.0, value=5.5, step=0.1)
-        with c3:
             p_insulin = st.number_input(t("predict_field_insulin"), min_value=0.0, max_value=900.0, value=80.0, step=1.0)
+        with c3:
             p_skin = st.number_input(t("predict_field_skin"), min_value=0.0, max_value=100.0, value=25.0, step=1.0)
-            p_pregnancies = st.number_input(t("predict_field_pregnancies"), min_value=0, max_value=15, value=0, step=1)
+            p_activity_label = st.selectbox(t("predict_field_activity"), options=list(activity_options.keys()), index=1)
+            p_smoking_label = st.selectbox(t("predict_field_smoking"), options=list(smoking_options.keys()))
+            p_alcohol_label = st.selectbox(t("predict_field_alcohol"), options=list(alcohol_options.keys()))
+            p_family_history = st.checkbox(t("predict_field_family_history"))
 
         predict_submitted = st.form_submit_button(t("predict_button"), use_container_width=True)
 
@@ -1105,6 +1159,10 @@ with tab5:
             "insulin": p_insulin,
             "skin_thickness": p_skin,
             "pregnancies": int(p_pregnancies),
+            "physical_activity": activity_options[p_activity_label],
+            "smoking_status": smoking_options[p_smoking_label],
+            "alcohol_consumption": alcohol_options[p_alcohol_label],
+            "family_history": 1 if p_family_history else 0,
         }
         try:
             r = requests.post(f"{API_BASE}/predict", json=payload, timeout=10)

@@ -222,6 +222,10 @@ to `docker-compose.yml`):
 | insulin         | float   | 0.0–500.0 μU/mL          |
 | skin_thickness  | float   | 5.0–80.0 mm              |
 | pregnancies     | int     | 0–10 (Female only)       |
+| physical_activity | str   | Low / Medium / High      |
+| smoking_status  | str     | Never / Former / Current |
+| alcohol_consumption | str | None / Moderate / High   |
+| family_history  | int     | 0 = no, 1 = yes (diabetes in family) |
 | diabetes_risk   | float   | 0.0–1.0 (logistic score) |
 | label           | int     | 0 = negative, 1 = positive |
 
@@ -254,19 +258,25 @@ relationships**, not arbitrary random numbers:
 | Insulin | ~51.5 ± 32.7 μU/mL | Normal fasting insulin (2–25 μU/mL) with insulin-resistance tail |
 | Skin thickness | ~20.4 ± 6.4 mm | Triceps skinfold, correlates with body fat / BMI |
 | Pregnancies | 0–10 (female only) | Standard field used in diabetes risk studies (e.g. Pima Indians Diabetes Dataset) |
+| Physical activity | Low / Medium / High | WHO physical activity guidelines; inactivity is a major modifiable diabetes risk factor |
+| Smoking status | Never / Former / Current | ADA: smoking increases insulin resistance and Type 2 diabetes risk |
+| Alcohol consumption | None / Moderate / High | Heavy alcohol use is linked to impaired glucose tolerance |
+| Family history | Yes / No | Genetic predisposition — one of the strongest known risk factors (ADA) |
 
 **Modeled correlations** (mirroring real clinical relationships):
 glucose rises with age and BMI; HbA1c tracks glucose (long-term
 control); blood pressure and insulin resistance both rise with BMI;
-skinfold thickness tracks body fat. A small random "unmeasured
-factors" term (genetics, diet, lifestyle) is added so the outcome
-isn't a perfect deterministic function of the measured features —
-just like in real data.
+skinfold thickness tracks body fat; low physical activity raises BMI
+and insulin resistance. A small random "unmeasured factors" term
+(other genetics, diet details) is added so the outcome isn't a perfect
+deterministic function of the measured features — just like in real
+data.
 
 **Label / prevalence**: `diabetes_risk` is a logistic function of the
-weighted clinical risk factors above. The intercept is calibrated so
-that **~15% of records are labeled diabetic**, matching real-world
-adult screening prevalence (IDF/WHO global estimates: ~10–15%).
+weighted clinical and lifestyle risk factors above (including family
+history, smoking, alcohol use and physical activity). The intercept is
+calibrated so that **~15% of records are labeled diabetic**, matching
+real-world adult screening prevalence (IDF/WHO global estimates: ~10–15%).
 
 With this design, a 10,000-record dataset (`data/patient_records.csv`,
 refreshed from `patient_records` via `\copy ... TO STDOUT WITH CSV

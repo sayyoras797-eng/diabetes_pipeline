@@ -53,9 +53,15 @@ MODEL_OUTPUT_DIR = os.getenv("MODEL_OUTPUT_DIR", "/app/models")
 
 FEATURE_COLS = [
     "age", "bmi", "glucose", "blood_pressure",
-    "hba1c", "insulin", "skin_thickness", "pregnancies"
+    "hba1c", "insulin", "skin_thickness", "pregnancies",
+    "family_history"
 ]
 TARGET_COL = "label"
+
+# Ordinal encodings for lifestyle features, must match backend/main.py
+PHYSICAL_ACTIVITY_MAP = {"Low": 0, "Medium": 1, "High": 2}
+SMOKING_MAP = {"Never": 0, "Former": 1, "Current": 2}
+ALCOHOL_MAP = {"None": 0, "Moderate": 1, "High": 2}
 
 
 # ──────────────────────────────────────────────
@@ -65,7 +71,8 @@ def load_data_from_postgres() -> pd.DataFrame:
     print("📦 Loading data from PostgreSQL...")
     conn = psycopg2.connect(**POSTGRES_CONFIG)
     query = f"""
-        SELECT {', '.join(FEATURE_COLS)}, gender, {TARGET_COL}
+        SELECT {', '.join(FEATURE_COLS)}, gender,
+               physical_activity, smoking_status, alcohol_consumption, {TARGET_COL}
         FROM patient_records
         ORDER BY recorded_at DESC
         LIMIT 5000
@@ -77,11 +84,16 @@ def load_data_from_postgres() -> pd.DataFrame:
 
 
 def preprocess(df: pd.DataFrame):
-    """Encode gender, split features / target."""
+    """Encode gender and lifestyle categoricals, split features / target."""
     le = LabelEncoder()
     df["gender_enc"] = le.fit_transform(df["gender"])
+    df["physical_activity_enc"] = df["physical_activity"].map(PHYSICAL_ACTIVITY_MAP)
+    df["smoking_status_enc"] = df["smoking_status"].map(SMOKING_MAP)
+    df["alcohol_consumption_enc"] = df["alcohol_consumption"].map(ALCOHOL_MAP)
 
-    feature_cols = FEATURE_COLS + ["gender_enc"]
+    feature_cols = FEATURE_COLS + [
+        "gender_enc", "physical_activity_enc", "smoking_status_enc", "alcohol_consumption_enc"
+    ]
     X = df[feature_cols].copy()
     y = df[TARGET_COL].copy()
 

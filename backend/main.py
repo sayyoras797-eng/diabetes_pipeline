@@ -28,6 +28,11 @@ def load_model():
 # LabelEncoder sorts classes alphabetically: "Female" -> 0, "Male" -> 1
 GENDER_MAP = {"Female": 0, "Male": 1}
 
+# Ordinal encodings for lifestyle features, must match ml/train_model.py
+PHYSICAL_ACTIVITY_MAP = {"Low": 0, "Medium": 1, "High": 2}
+SMOKING_MAP = {"Never": 0, "Former": 1, "Current": 2}
+ALCOHOL_MAP = {"None": 0, "Moderate": 1, "High": 2}
+
 
 def get_db():
     return psycopg2.connect(
@@ -49,6 +54,10 @@ class PatientRecord(BaseModel):
     insulin: float
     skin_thickness: float
     pregnancies: int
+    physical_activity: str
+    smoking_status: str
+    alcohol_consumption: str
+    family_history: int
     diabetes_risk: float
     label: int
     recorded_at: str
@@ -56,7 +65,9 @@ class PatientRecord(BaseModel):
 
 PATIENT_COLUMNS = (
     "id,age,gender,bmi,glucose,blood_pressure,hba1c,"
-    "insulin,skin_thickness,pregnancies,diabetes_risk,label,recorded_at"
+    "insulin,skin_thickness,pregnancies,"
+    "physical_activity,smoking_status,alcohol_consumption,family_history,"
+    "diabetes_risk,label,recorded_at"
 )
 
 
@@ -83,7 +94,9 @@ def get_patients(limit: int = Query(100, le=5000), label: Optional[int] = None):
             id=r[0], age=r[1], gender=r[2], bmi=r[3],
             glucose=r[4], blood_pressure=r[5], hba1c=r[6],
             insulin=r[7], skin_thickness=r[8], pregnancies=r[9],
-            diabetes_risk=r[10], label=r[11], recorded_at=str(r[12])
+            physical_activity=r[10], smoking_status=r[11],
+            alcohol_consumption=r[12], family_history=r[13],
+            diabetes_risk=r[14], label=r[15], recorded_at=str(r[16])
         ) for r in rows
     ]
 
@@ -129,6 +142,10 @@ class PredictionInput(BaseModel):
     insulin: float
     skin_thickness: float
     pregnancies: int = 0
+    physical_activity: str = "Medium"
+    smoking_status: str = "Never"
+    alcohol_consumption: str = "None"
+    family_history: int = 0
 
 
 class PredictionOutput(BaseModel):
@@ -148,6 +165,12 @@ def predict(payload: PredictionInput):
 
     if payload.gender not in GENDER_MAP:
         raise HTTPException(status_code=400, detail="gender must be 'Male' or 'Female'")
+    if payload.physical_activity not in PHYSICAL_ACTIVITY_MAP:
+        raise HTTPException(status_code=400, detail="physical_activity must be 'Low', 'Medium' or 'High'")
+    if payload.smoking_status not in SMOKING_MAP:
+        raise HTTPException(status_code=400, detail="smoking_status must be 'Never', 'Former' or 'Current'")
+    if payload.alcohol_consumption not in ALCOHOL_MAP:
+        raise HTTPException(status_code=400, detail="alcohol_consumption must be 'None', 'Moderate' or 'High'")
 
     row = {
         "age": payload.age,
@@ -159,6 +182,10 @@ def predict(payload: PredictionInput):
         "skin_thickness": payload.skin_thickness,
         "pregnancies": payload.pregnancies,
         "gender_enc": GENDER_MAP[payload.gender],
+        "physical_activity_enc": PHYSICAL_ACTIVITY_MAP[payload.physical_activity],
+        "smoking_status_enc": SMOKING_MAP[payload.smoking_status],
+        "alcohol_consumption_enc": ALCOHOL_MAP[payload.alcohol_consumption],
+        "family_history": payload.family_history,
     }
     features = [[row[col] for col in meta["feature_cols"]]]
 

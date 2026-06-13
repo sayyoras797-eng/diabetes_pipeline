@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS patient_records (
     insulin         NUMERIC(6,2)  NOT NULL,
     skin_thickness  NUMERIC(5,2)  NOT NULL,
     pregnancies     INTEGER       NOT NULL,
+    physical_activity   VARCHAR(10)  NOT NULL DEFAULT 'Medium',
+    smoking_status      VARCHAR(10)  NOT NULL DEFAULT 'Never',
+    alcohol_consumption VARCHAR(10)  NOT NULL DEFAULT 'None',
+    family_history      SMALLINT     NOT NULL DEFAULT 0,
     diabetes_risk   NUMERIC(6,4)  NOT NULL,
     label           SMALLINT      NOT NULL,
     recorded_at     TIMESTAMP     NOT NULL DEFAULT NOW()
