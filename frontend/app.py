@@ -16,7 +16,14 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 from fpdf import FPDF
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+TASHKENT_TZ = timezone(timedelta(hours=5))
+
+
+def now_tashkent():
+    """Current time in Asia/Tashkent, naive (matches recorded_at from the DB)."""
+    return datetime.now(TASHKENT_TZ).replace(tzinfo=None)
 
 # ──────────────────────────────────────────────
 # Config
@@ -718,7 +725,7 @@ def build_pdf_report(df: pd.DataFrame, stats: dict) -> bytes:
     pdf.cell(0, 12, "Diabetes Risk Dashboard - Report", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    pdf.cell(0, 8, f"Generated: {now_tashkent().strftime('%Y-%m-%d %H:%M:%S')}",
              new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
     pdf.ln(4)
@@ -789,7 +796,7 @@ with st.sidebar:
     alive = api_health()
     status_text = t("status_up") if alive else t("status_down")
     st.markdown(f"**{t('status_label')}** {status_text}")
-    st.markdown(f"**{t('last_update')}** {datetime.now().strftime('%H:%M:%S')}")
+    st.markdown(f"**{t('last_update')}** {now_tashkent().strftime('%H:%M:%S')}")
     st.markdown("---")
 
     record_limit = st.slider(t("records_slider"), 100, 5000, 1000, step=100)
@@ -1083,7 +1090,7 @@ with tab4:
     st.markdown(f"## {t('data_freshness_title')}")
     if not df.empty:
         latest_record = df["recorded_at"].max()
-        minutes_ago = (datetime.now() - latest_record.replace(tzinfo=None)).seconds // 60
+        minutes_ago = int((now_tashkent() - latest_record.replace(tzinfo=None)).total_seconds() // 60)
         st.markdown(t("latest_record").format(ts=latest_record.strftime('%Y-%m-%d %H:%M:%S'), m=minutes_ago))
 
         hourly = (
@@ -1194,7 +1201,7 @@ st.markdown(
     f"""
     <div class="app-footer">
       {t('footer_line1')}<br>
-      {t('footer_updated')}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+      {t('footer_updated')}: {now_tashkent().strftime('%Y-%m-%d %H:%M:%S')}
     </div>
     """,
     unsafe_allow_html=True,
