@@ -1001,6 +1001,7 @@ with tab3:
                  "alcohol_consumption", "family_history",
                  "diabetes_risk", "label", "recorded_at"]
     default_cols = ["id", "age", "gender", "glucose", "bmi", "hba1c",
+                     "physical_activity", "smoking_status", "family_history",
                      "diabetes_risk", "label", "recorded_at"]
 
     search_cols = st.columns([2, 1, 1, 1])
