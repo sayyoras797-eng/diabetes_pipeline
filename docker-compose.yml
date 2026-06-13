@@ -1,0 +1,171 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: diabetes_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dagster-user-code:
+    build:
+      context: .
+      dockerfile: dagster_pipeline/Dockerfile
+    container_name: diabetes_dagster_user_code
+    restart: on-failure
+    command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "-f", "jobs/diabetes_job.py", "-a", "defs"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+    volumes:
+      - dagster_home:/app/diabetes_pipeline/dagster_pipeline/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: dagster_pipeline/Dockerfile
+    container_name: diabetes_dagster_webserver
+    restart: on-failure
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "workspace.yaml", "--path-prefix", "/dagster"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - dagster_home:/app/diabetes_pipeline/dagster_pipeline/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dagster-user-code:
+        condition: service_started
+
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: dagster_pipeline/Dockerfile
+    container_name: diabetes_dagster_daemon
+    command: ["dagster-daemon", "run"]
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - dagster_home:/app/diabetes_pipeline/dagster_pipeline/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dagster-user-code:
+        condition: service_started
+
+  fastapi:
+    build:
+      context: ./backend
+    container_name: diabetes_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - model_artifacts:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mlflow:
+    build:
+      context: ./ml
+      dockerfile: mlflow.Dockerfile
+    container_name: diabetes_mlflow
+    restart: unless-stopped
+    volumes:
+      - mlflow_data:/mlflow
+    expose:
+      - "5000"
+
+  ml-trainer:
+    build:
+      context: ./ml
+    container_name: diabetes_ml_trainer
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: diabetes_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - model_artifacts:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    profiles: ["tools"]
+
+  streamlit:
+    build:
+      context: ./frontend
+    container_name: diabetes_streamlit
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://fastapi:8000
+      DAGSTER_INTERNAL_URL: http://dagster-webserver:3000
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-0334}
+    depends_on:
+      - fastapi
+
+  nginx:
+    image: nginx:alpine
+    container_name: diabetes_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    depends_on:
+      - streamlit
+      - dagster-webserver
+
+  # Faqat lokal/test muhitda tashqi internetga vaqtinchalik link kerak bo'lsa:
+  #   docker compose --profile tunnel up -d
+  # Production serverda kerak emas (server o'zining public IP'iga ega).
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: diabetes_tunnel
+    restart: unless-stopped
+    command: ["tunnel", "--url", "http://nginx:80", "--no-autoupdate"]
+    depends_on:
+      - nginx
+    profiles: ["tunnel"]
+
+volumes:
+  postgres_data:
+  dagster_home:
+  mlflow_data:
+  model_artifacts:
