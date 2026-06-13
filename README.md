@@ -13,19 +13,24 @@ Dagster schedule (hourly, 09:00–17:00, Mon–Fri, Asia/Tashkent)
             │                                      └─► /predict (ML model)
             └─► send_high_risk_alert ─► email (optional, via SMTP)
 
-ml-trainer (one-off job)
-    └─► loads patient_records ─► trains models ─► logs to MLflow
+ml-trainer (one-off job, optional "tools" profile)
+    └─► loads patient_records ─► trains models ─► optionally logs to MLflow
             └─► saves best model ─► shared volume ─► used by FastAPI /predict
 
 nginx reverse proxy (port 80)
     ├─► /            → Streamlit Dashboard
-    ├─► /dagster/    → Dagster UI (HTTP Basic Auth) — pipeline run monitoring
-    └─► /mlflow/     → MLflow UI (HTTP Basic Auth) — experiment tracking
+    └─► /dagster/    → Dagster UI (HTTP Basic Auth) — pipeline run monitoring
 ```
 
 All services run in Docker containers. Only `nginx` is exposed to the
-host (port 80) — Postgres, Dagster, FastAPI, Streamlit and MLflow are
-only reachable from inside the Docker network.
+host (port 80) — Postgres, Dagster, FastAPI and Streamlit are only
+reachable from inside the Docker network.
+
+MLflow and `ml-trainer` are behind the `tools` profile and **do not
+start by default** — they're only needed when retraining the model, not
+for serving `/predict`. This keeps the default deployment lightweight
+(~650MB RAM instead of ~1.2GB), which matters on small free-tier VPS
+instances.
 
 Dagster's code (jobs, ops, schedule) runs in its own `dagster-user-code`
 gRPC server container; `dagster-webserver` and `dagster-daemon` both
@@ -44,9 +49,8 @@ docker compose up -d --build
 # 3. Open in browser:
 #    Streamlit dashboard → http://localhost            (login: see DASHBOARD_PASSWORD)
 #    Dagster UI          → http://localhost/dagster/   (Basic Auth)
-#    MLflow UI           → http://localhost/mlflow/    (Basic Auth)
 #
-#    Basic Auth credentials for /dagster/ and /mlflow/ live in
+#    Basic Auth credentials for /dagster/ live in
 #    nginx/.htpasswd (currently admin / 0334 — regenerate with:
 #      openssl passwd -apr1 'your-new-password')
 ```
@@ -66,8 +70,9 @@ These steps deploy the whole stack to a Linux server (e.g. Ubuntu
 ### 1. Server requirements
 
 - Ubuntu 22.04 (or any Linux with Docker support)
-- At least 2 vCPU / 4 GB RAM (Dagster + MLflow + Postgres + ML training
-  need headroom)
+- At least 1 vCPU / 1 GB RAM for the default stack (Dagster + Postgres +
+  FastAPI + Streamlit + nginx, ~650MB). The optional `tools` profile
+  (MLflow + ml-trainer, for retraining only) needs ~1.5GB extra.
 - Open inbound port **80** (and **22** for SSH)
 
 ### 2. Install Docker
@@ -97,8 +102,8 @@ nano .env   # set strong POSTGRES_PASSWORD and DASHBOARD_PASSWORD,
             # optionally fill in SMTP_* / ALERT_EMAIL_* for email alerts
 ```
 
-Also regenerate the Basic Auth credentials for `/dagster/` and
-`/mlflow/` (default is `admin` / `0334`):
+Also regenerate the Basic Auth credentials for `/dagster/`
+(default is `admin` / `0334`):
 
 ```bash
 sudo apt-get install -y apache2-utils   # provides htpasswd
@@ -112,7 +117,7 @@ docker compose up -d --build
 ```
 
 This starts Postgres, the Dagster code server/webserver/daemon,
-FastAPI, MLflow, Streamlit and nginx. The `tunnel` (Cloudflare) and
+FastAPI, Streamlit and nginx. The `tunnel` (Cloudflare), `mlflow` and
 `ml-trainer` services do **not** start automatically — they're behind
 `profiles`.
 
@@ -122,7 +127,10 @@ FastAPI, MLflow, Streamlit and nginx. The `tunnel` (Cloudflare) and
 docker compose --profile tools run --rm ml-trainer
 ```
 
-Without this step, `/predict` returns 503 until a model exists.
+Without this step, `/predict` returns 503 until a model exists. This
+also starts `mlflow` (its `depends_on`) for experiment tracking —
+visit `http://SERVER_IP:5000`. Stop it afterwards with
+`docker compose --profile tools stop mlflow` to free up RAM.
 
 ### 7. Open the firewall
 
@@ -130,13 +138,15 @@ Without this step, `/predict` returns 503 until a model exists.
 sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw enable
+# Optional, only if you'll use the MLflow UI (tools profile):
+# sudo ufw allow 5000/tcp
 ```
 
 ### 8. Access
 
 - Dashboard: `http://SERVER_IP/`
 - Dagster UI: `http://SERVER_IP/dagster/` (Basic Auth)
-- MLflow UI: `http://SERVER_IP/mlflow/` (Basic Auth)
+- MLflow UI (only while the `tools` profile is running): `http://SERVER_IP:5000`
 
 Activate the hourly schedule as described above (Dagster UI →
 Overview → Schedules).
@@ -164,10 +174,10 @@ docker compose --profile tools run --rm ml-trainer
 
 This loads `patient_records` from PostgreSQL, trains Logistic
 Regression, Random Forest, Gradient Boosting and SVM models, logs all
-metrics/plots/models to MLflow (`/mlflow/`), picks the best model by
-ROC-AUC, and saves it to a shared volume so FastAPI's `/predict`
-endpoint can serve it immediately. Re-run this whenever you want to
-retrain on fresh data.
+metrics/plots/models to MLflow (started automatically as a dependency,
+`http://SERVER_IP:5000`), picks the best model by accuracy, and saves
+it to a shared volume so FastAPI's `/predict` endpoint can serve it
+immediately. Re-run this whenever you want to retrain on fresh data.
 
 ## Email alerts for high-risk patients
 
@@ -325,7 +335,7 @@ diabetes_pipeline/
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── nginx/
-│   ├── nginx.conf                 ← reverse proxy + Basic Auth (/dagster/, /mlflow/)
+│   ├── nginx.conf                 ← reverse proxy + Basic Auth (/dagster/)
 │   └── .htpasswd
 └── ml/
     ├── train_model.py             ← trains models, logs to MLflow, saves best_model.pkl

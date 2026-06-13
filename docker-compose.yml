@@ -97,6 +97,10 @@ services:
       postgres:
         condition: service_healthy
 
+  # MLflow va ml-trainer ixtiyoriy ("tools" profili): production'da kerak emas,
+  # /predict allaqachon o'qitilgan model_artifacts volume'idan ishlaydi.
+  # Qayta o'qitish kerak bo'lsa: docker compose --profile tools up -d mlflow
+  #                              docker compose --profile tools run --rm ml-trainer
   mlflow:
     build:
       context: ./ml
@@ -105,8 +109,9 @@ services:
     restart: unless-stopped
     volumes:
       - mlflow_data:/mlflow
-    expose:
-      - "5000"
+    ports:
+      - "5000:5000"
+    profiles: ["tools"]
 
   ml-trainer:
     build:
