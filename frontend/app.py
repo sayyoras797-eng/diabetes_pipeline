@@ -98,7 +98,7 @@ TRANSLATIONS = {
         "risk_threshold_label": "Xavf darajasi ≥",
         "age_range_label": "Yosh oralig'i",
         "columns_label": "Ustunlar",
-        "records_found": "Jami **{n}** ta yozuv topildi",
+        "records_found": "Jami **{n}** ta yozuv topildi (jadvalda so'nggi **{m}** tasi ko'rsatilgan)",
         "csv_download": "⬇️ CSV yuklab olish",
         "pipeline_services_title": "Jarayon xizmatlari",
         "status_running": "Ishlayapti",
@@ -198,7 +198,7 @@ TRANSLATIONS = {
         "risk_threshold_label": "Risk score ≥",
         "age_range_label": "Age range",
         "columns_label": "Columns",
-        "records_found": "Found **{n}** records",
+        "records_found": "Found **{n}** records (showing the latest **{m}** in the table)",
         "csv_download": "⬇️ Download CSV",
         "pipeline_services_title": "Pipeline services",
         "status_running": "Running",
@@ -298,7 +298,7 @@ TRANSLATIONS = {
         "risk_threshold_label": "Уровень риска ≥",
         "age_range_label": "Возрастной диапазон",
         "columns_label": "Столбцы",
-        "records_found": "Найдено **{n}** записей",
+        "records_found": "Найдено **{n}** записей (в таблице показаны последние **{m}**)",
         "csv_download": "⬇️ Скачать CSV",
         "pipeline_services_title": "Сервисы процесса",
         "status_running": "Работает",
@@ -975,7 +975,7 @@ with tab3:
         (df["age"] <= age_max)
     ]
 
-    st.markdown(t("records_found").format(n=len(filtered)))
+    st.markdown(t("records_found").format(n=len(filtered), m=min(len(filtered), 200)))
 
     def style_label(val):
         if val == 1:
